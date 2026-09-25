@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+train/
+test_predict.py
+.venv/
+__pycache__/
+*.pyc
+.env
