@@ -69,11 +69,14 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          script_stop: true
           script: |
             set -e
             echo "Disk before cleanup:"
             df -h /
+            if sudo docker inspect cnn-api-container >/dev/null 2>&1; then
+              sudo docker rm -f cnn-api-container
+            fi
+            sudo docker image rm -f cnn-api:latest 2>/dev/null || true
             sudo docker image prune -af
             sudo docker builder prune -af 2>/dev/null || true
             rm -f ~/cnn-api.tar ~/cnn-api.tar.gz
