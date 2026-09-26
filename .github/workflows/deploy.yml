@@ -53,8 +53,15 @@ jobs:
       - name: Build production Docker image
         run: docker build --platform linux/amd64 -t cnn-api:latest .
 
-      - name: Save Docker image
-        run: docker save -o cnn-api.tar cnn-api:latest
+      - name: Prepare SSH
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Clean EC2 Docker storage
         uses: appleboy/ssh-action@v1.2.5
@@ -69,18 +76,20 @@ jobs:
             df -h /
             sudo docker image prune -af
             sudo docker builder prune -af 2>/dev/null || true
-            rm -f ~/cnn-api.tar
+            rm -f ~/cnn-api.tar ~/cnn-api.tar.gz
             echo "Disk after cleanup:"
             df -h /
 
-      - name: Transfer image to EC2
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: cnn-api.tar
-          target: ~/
+      - name: Stream image directly into Docker on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+        run: |
+          set -o pipefail
+          docker save cnn-api:latest \
+            | gzip -1 \
+            | ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+                "$EC2_USERNAME@$EC2_HOST" 'gunzip | sudo docker load'
 
       - name: Deploy with health check and rollback
         uses: appleboy/ssh-action@v1.2.5
