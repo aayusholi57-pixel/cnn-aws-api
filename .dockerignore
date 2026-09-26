@@ -1,7 +1,13 @@
-﻿.git
+.git
+.github
 .venv
 .venv-*
 __pycache__
 *.py[cod]
+*.log
+.env
+.env.*
 train/
 test_predict.py
+tests/
+README.md
