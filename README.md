@@ -131,7 +131,7 @@ Every pull request and push to `main` runs:
 2. Pytest API/inference tests
 3. Docker image build
 
-Only a successful push to `main` proceeds to the EC2 deployment job. GitHub Actions deployment concurrency prevents overlapping deployments.
+A push to `main` runs the test and Docker validation automatically. EC2 deployment is manual via **Actions → Build, Test and Deploy CNN API → Run workflow**. This prevents a temporarily unreachable EC2 host from breaking the application's CI pipeline. GitHub Actions deployment concurrency prevents overlapping deployments.
 
 Required GitHub Actions secrets:
 
