@@ -27,10 +27,12 @@ jobs:
         with:
           python-version: "3.10"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run tests
         run: pytest -q
@@ -54,6 +56,23 @@ jobs:
       - name: Save Docker image
         run: docker save -o cnn-api.tar cnn-api:latest
 
+      - name: Clean EC2 Docker storage
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            echo "Disk before cleanup:"
+            df -h /
+            sudo docker image prune -af
+            sudo docker builder prune -af 2>/dev/null || true
+            rm -f ~/cnn-api.tar
+            echo "Disk after cleanup:"
+            df -h /
+
       - name: Transfer image to EC2
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -76,11 +95,11 @@ jobs:
             sudo docker load -i ~/cnn-api.tar
             sudo docker rm -f cnn-api-candidate 2>/dev/null || true
 
-            sudo docker run -d               --name cnn-api-candidate               --restart unless-stopped               -p 9001:9000               cnn-api:latest
+            sudo docker run -d --name cnn-api-candidate --restart unless-stopped -p 9001:9000 cnn-api:latest
 
             ready=0
             for i in $(seq 1 30); do
-              if sudo docker exec cnn-api-candidate                 python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2).read()"; then
+              if sudo docker exec cnn-api-candidate python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2).read()"; then
                 ready=1
                 break
               fi
@@ -100,11 +119,11 @@ jobs:
             fi
 
             sudo docker rm -f cnn-api-container 2>/dev/null || true
-            sudo docker run -d               --name cnn-api-container               --restart unless-stopped               -p 8080:9000               cnn-api:latest
+            sudo docker run -d --name cnn-api-container --restart unless-stopped -p 8080:9000 cnn-api:latest
 
             healthy=0
             for i in $(seq 1 30); do
-              if sudo docker exec cnn-api-container                 python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2).read()"; then
+              if sudo docker exec cnn-api-container python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/health', timeout=2).read()"; then
                 healthy=1
                 break
               fi
