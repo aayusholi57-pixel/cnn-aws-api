@@ -54,6 +54,10 @@ Example:
 }
 ```
 
+### Browser frontend integration
+
+The API supports browser clients with CORS. Set `CORS_ALLOW_ORIGINS` to a comma-separated list of frontend origins in production, or leave it unset for the default public API behavior.
+
 ### Prediction
 
 ```http
