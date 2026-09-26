@@ -27,6 +27,18 @@ def test_versioned_health():
     assert response.status_code == 200
 
 
+def test_cors_for_browser_frontend():
+    response = client.options(
+        "/api/v1/predict",
+        headers={
+            "Origin": "https://example.com",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+
+
 def test_invalid_image():
     response = client.post(
         "/api/v1/predict",
