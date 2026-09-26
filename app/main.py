@@ -1,9 +1,11 @@
 from pathlib import Path
 import io
+import os
 
 import torch
 import torch.nn.functional as F
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
 
 from app.model import load_model
@@ -16,6 +18,22 @@ app = FastAPI(
     title="CNN Image Classification API",
     version=APP_VERSION,
     description="Production-ready FastAPI service for CNN image classification.",
+)
+
+# Browser frontends on another origin need CORS permission to call the API.
+# Keep the default permissive for a public inference API; deployments can restrict
+# it with CORS_ALLOW_ORIGINS=https://example.com,https://www.example.com.
+_cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "cnn_model.pth"
