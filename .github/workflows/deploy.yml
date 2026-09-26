@@ -58,12 +58,21 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          set -euo pipefail
+          test -n "$EC2_HOST" || { echo "EC2_HOST secret is empty"; exit 1; }
+          test -n "$EC2_SSH_KEY" || { echo "EC2_SSH_KEY secret is empty"; exit 1; }
           mkdir -p ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          echo "Checking SSH reachability to EC2..."
+          if ! timeout 10 bash -c "</dev/tcp/$EC2_HOST/22"; then
+            echo "Cannot reach $EC2_HOST:22 from the GitHub runner."
+            echo "Check the EC2 public/DNS address, instance state, and security-group/NACL access for SSH port 22."
+            exit 1
+          fi
+          ssh-keyscan -T 10 -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
-      - name: Clean EC2 Docker storage
+      - name: Clean unused EC2 Docker storage
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -73,10 +82,8 @@ jobs:
             set -e
             echo "Disk before cleanup:"
             df -h /
-            if sudo docker inspect cnn-api-container >/dev/null 2>&1; then
-              sudo docker rm -f cnn-api-container
-            fi
-            sudo docker image rm -f cnn-api:latest 2>/dev/null || true
+            # Keep the live container and its image until the replacement is healthy.
+            # Only remove unused layers/build cache so a failed deployment can roll back.
             sudo docker image prune -af
             sudo docker builder prune -af 2>/dev/null || true
             rm -f ~/cnn-api.tar ~/cnn-api.tar.gz
