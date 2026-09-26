@@ -1,4 +1,4 @@
-name: Deploy to AWS EC2
+﻿name: Build and Deploy to EC2
 
 on:
   push:
@@ -9,16 +9,33 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        # If your Dockerfile is inside a subfolder, change '.' to './cnn-aws-api'
+        run: docker build --platform linux/amd64 -t cnn-api:latest .
+
+      - name: Save Docker Image to tar
+        run: docker save -o cnn-api.tar cnn-api:latest
+
+      - name: Transfer Image to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "cnn-api.tar"
+          target: "~/"
+
+      - name: Load and Run on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd cnn-aws-api
-            git pull origin main
-            sudo docker build -t cnn-api .
-            sudo docker stop cnn-api-container || true
-            sudo docker rm cnn-api-container || true
-            sudo docker run -d --name cnn-api-container -p 8080:9000 cnn-api
+            sudo docker rm -f cnn-api-container 2>/dev/null || true
+            sudo docker load -i ~/cnn-api.tar
+            sudo docker run -d --name cnn-api-container --restart unless-stopped -p 8080:9000 cnn-api:latest
+            rm ~/cnn-api.tar

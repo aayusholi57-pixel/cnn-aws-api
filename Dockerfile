@@ -1,22 +1,14 @@
-# Use an official Python runtime as a parent image (slim versions are smaller)
-FROM python:3.10-slim
+﻿FROM python:3.10-slim-bookworm
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy only the requirements first to cache the pip install step
+# requirements.txt is UTF-16 LE; convert it before pip reads it.
 COPY requirements.txt .
+RUN python -c "from pathlib import Path; p = Path('requirements.txt'); p.write_text(p.read_text(encoding='utf-16'), encoding='utf-8')" \
+    && pip install --no-cache-dir --disable-pip-version-check -r requirements.txt
 
-# Install Python dependencies (PyTorch is huge, this step takes a minute)
-# --no-cache-dir keeps the Docker image smaller
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy only the application and its trained weights (see .dockerignore).
+COPY . .
 
-# Copy the rest of the application code and the trained model
-COPY app/ ./app/
-COPY models/ ./models/
-
-# Expose the port our FastAPI app runs on
 EXPOSE 9000
-
-# Command to run the application when the container starts
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]clea
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]
