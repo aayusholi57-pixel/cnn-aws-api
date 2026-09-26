@@ -1,6 +1,6 @@
 # CNN Image Classification API
 
-A production-style PyTorch CNN inference service built with **FastAPI, Docker, GitHub Actions, and AWS EC2**.
+A production-style PyTorch CNN inference API built with **FastAPI, Docker, GitHub Actions, and AWS EC2**. The project is API-only; Swagger/OpenAPI is the intended interface.
 
 ## Architecture
 
@@ -54,9 +54,9 @@ Example:
 }
 ```
 
-### Browser frontend integration
+### Swagger / OpenAPI
 
-The API supports browser clients with CORS. Set `CORS_ALLOW_ORIGINS` to a comma-separated list of frontend origins in production, or leave it unset for the default public API behavior.
+Open `http://127.0.0.1:9000/docs` locally or `http://<EC2_PUBLIC_IP>:8080/docs` after deployment. Swagger lets you upload an image and call the prediction endpoint directly, so no separate frontend is required.
 
 ### Prediction
 
