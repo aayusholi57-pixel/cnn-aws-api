@@ -101,7 +101,6 @@ jobs:
           script: |
             set -e
 
-            sudo docker load -i ~/cnn-api.tar
             sudo docker rm -f cnn-api-candidate 2>/dev/null || true
 
             sudo docker run -d --name cnn-api-candidate --restart unless-stopped -p 9001:9000 cnn-api:latest
